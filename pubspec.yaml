@@ -1,0 +1,54 @@
+name: bike_tracker
+description: A Flutter bike tracking app with GPS tracking, offline storage, and trail visualization.
+publish_to: 'none'
+version: 1.0.2
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_map_tile_caching: ^10.1.1
+
+  # State Management
+  provider: ^6.1.1
+
+  # Location & GPS
+  geolocator: ^14.0.2
+  location: ^6.0.2
+
+  # Background Service & Notifications
+  flutter_foreground_task: ^6.1.5
+
+  # Local Storage
+  hive: ^2.2.3
+  hive_flutter: ^1.1.0
+  path_provider: ^2.1.1
+
+  # Map
+  flutter_map: ^8.1.1
+  flutter_map_location_marker: ^10.2.0
+  latlong2: ^0.9.0
+
+  # UI
+  cupertino_icons: ^1.0.6
+  intl: ^0.19.0
+  uuid: ^4.2.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.1
+  hive_generator: ^2.0.1
+  build_runner: ^2.4.7
+  flutter_launcher_icons: ^0.13.1
+
+flutter:
+  uses-material-design: true
+  # Flutter launcher icons configuration
+flutter_icons:
+  android: true
+  ios: false
+  image_path: "assets/logo.png"
+  remove_alpha_ios: true
