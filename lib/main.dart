@@ -6,7 +6,6 @@ import 'providers/theme_provider.dart';
 import 'services/storage_service.dart';
 import 'services/background_service.dart';
 import 'screens/home_screen.dart';
-import 'package:flutter_map_tile_caching/flutter_map_tile_caching.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -16,14 +15,6 @@ void main() async {
 
   // Initialize background service
   await BackgroundService.initialize();
-
-  // Initialize flutter_map_tile_caching
-  await FMTCObjectBoxBackend().initialise();
-
-  const cacheStore = FMTCStore('bike_tracker_cache');
-  if (!await cacheStore.manage.ready) {
-    await cacheStore.manage.create();
-  }
 
   runApp(const BikeTrackerApp());
 }

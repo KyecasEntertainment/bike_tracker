@@ -1,12 +1,10 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_map/flutter_map.dart';
-import 'package:latlong2/latlong.dart';
-import 'package:flutter_map_tile_caching/flutter_map_tile_caching.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 import '../models/ride_session.dart';
 import '../models/track_point.dart';
-import '../services/storage_service.dart';
 import '../utils/app_color_theme.dart';
 import '../widgets/stats_card.dart';
 
@@ -31,17 +29,11 @@ class _RideDetailScreenState extends State<RideDetailScreen> {
   List<TrackPoint> _trackPoints = [];
   List<LatLng> _polylinePoints = [];
   List<LatLng> _animatedPolylinePoints = [];
-  final MapController _mapController = MapController();
+  GoogleMapController? _mapController;
   Timer? _trackAnimationTimer;
   bool _isTrackAnimating = false;
   bool _isLoading = true;
-  bool _isDownloadingOfflineMap = false;
   bool _isSheetCollapsed = false;
-  static const FMTCStore _cache = FMTCStore('bike_tracker_cache');
-  static const double _estimatedKbPerTile = 20;
-
-  bool get _offlineOnlyModeEnabled =>
-      StorageService().isOfflineOnlyModeEnabled();
 
   @override
   void initState() {
@@ -54,7 +46,9 @@ class _RideDetailScreenState extends State<RideDetailScreen> {
     _trackPoints = widget.ride.getTrackPoints();
 
     // Convert to LatLng for map
-    _polylinePoints = _trackPoints.map((p) => p.toLatLng()).toList();
+    _polylinePoints = _trackPoints
+        .map((p) => LatLng(p.latitude, p.longitude))
+        .toList();
     _animatedPolylinePoints = _polylinePoints.length > 1
         ? [_polylinePoints.first]
         : List<LatLng>.from(_polylinePoints);
@@ -123,17 +117,6 @@ class _RideDetailScreenState extends State<RideDetailScreen> {
             onPressed: _isTrackAnimating ? null : _startTrackAnimation,
           ),
           IconButton(
-            icon: _isDownloadingOfflineMap
-                ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Icon(Icons.download_for_offline_outlined),
-            tooltip: 'Download map offline',
-            onPressed: _isDownloadingOfflineMap ? null : _downloadMapOffline,
-          ),
-          IconButton(
             icon: const Icon(Icons.share),
             onPressed: () {
               // TODO: Implement share functionality
@@ -179,7 +162,13 @@ class _RideDetailScreenState extends State<RideDetailScreen> {
   }
 
   Widget _buildMap() {
-    final semanticColors = Theme.of(context).extension<AppSemanticColors>()!;
+    if (kIsWeb ||
+        (defaultTargetPlatform != TargetPlatform.android &&
+            defaultTargetPlatform != TargetPlatform.iOS)) {
+      return const Center(
+        child: Text('Google Maps is available in the Android and iOS apps.'),
+      );
+    }
 
     if (_polylinePoints.isEmpty) {
       return Container(
@@ -190,97 +179,46 @@ class _RideDetailScreenState extends State<RideDetailScreen> {
       );
     }
 
-    // Calculate bounds for all points
-    final bounds = _calculateBounds();
-
-    // Get start and end points
     final startPoint = _polylinePoints.first;
     final currentEndPoint = _animatedPolylinePoints.isEmpty
         ? _polylinePoints.last
         : _animatedPolylinePoints.last;
 
-    return FlutterMap(
-      mapController: _mapController,
-      options: MapOptions(
-        initialCenter: _polylinePoints.first,
-        initialZoom: 14,
-        onMapReady: () {
-          // Fit bounds when map is ready
-          if (_polylinePoints.length > 1) {
-            _mapController.fitCamera(
-              CameraFit.bounds(
-                bounds: bounds,
-                padding: const EdgeInsets.all(50),
-              ),
-            );
-          }
-        },
-      ),
-      children: [
-        // Tile layer (OpenStreetMap)
-        _buildRideTileLayer(),
-        // Polyline layer (trail)
-        PolylineLayer(
-          polylines: [
-            Polyline(
-              points: _animatedPolylinePoints,
-              color: Theme.of(context).colorScheme.primary,
-              strokeWidth: 4,
-            ),
-          ],
+    return GoogleMap(
+      initialCameraPosition: CameraPosition(target: startPoint, zoom: 14),
+      onMapCreated: (controller) {
+        _mapController = controller;
+        if (_polylinePoints.length > 1) {
+          controller.animateCamera(
+            CameraUpdate.newLatLngBounds(_calculateBounds(), 50),
+          );
+        }
+      },
+      mapToolbarEnabled: false,
+      myLocationButtonEnabled: false,
+      polylines: {
+        Polyline(
+          polylineId: const PolylineId('ride_track'),
+          points: _animatedPolylinePoints,
+          color: Theme.of(context).colorScheme.primary,
+          width: 4,
         ),
-
-        // Markers for start and end
-        MarkerLayer(
-          markers: [
-            // Start marker (green)
-            Marker(
-              point: startPoint,
-              width: 40,
-              height: 40,
-              rotate: true,
-              child: Container(
-                decoration: BoxDecoration(
-                  color: semanticColors.trailStart,
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: Theme.of(context).colorScheme.surface,
-                    width: 2,
-                  ),
-                ),
-                child: Icon(
-                  Icons.play_arrow,
-                  color: Theme.of(context).colorScheme.onPrimary,
-                  size: 20,
-                ),
-              ),
-            ),
-            // End marker (red)
-            if (_animatedPolylinePoints.length > 1)
-              Marker(
-                point: currentEndPoint,
-                width: 40,
-                height: 40,
-                rotate: true,
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: semanticColors.trailEnd,
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                      color: Theme.of(context).colorScheme.surface,
-                      width: 2,
-                    ),
-                  ),
-                  child: Icon(
-                    Icons.flag,
-                    color: Theme.of(context).colorScheme.onPrimary,
-                    size: 20,
-                  ),
-                ),
-              ),
-          ],
+      },
+      markers: {
+        Marker(
+          markerId: const MarkerId('ride_start'),
+          position: startPoint,
+          icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
+          infoWindow: const InfoWindow(title: 'Ride start'),
         ),
-      ],
+        if (_animatedPolylinePoints.length > 1)
+          Marker(
+            markerId: const MarkerId('ride_end'),
+            position: currentEndPoint,
+            icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
+            infoWindow: const InfoWindow(title: 'Ride end'),
+          ),
+      },
     );
   }
 
@@ -455,189 +393,6 @@ class _RideDetailScreenState extends State<RideDetailScreen> {
     );
   }
 
-  TileLayer _buildRideTileLayer() {
-    return TileLayer(
-      urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-      tileProvider: FMTCTileProvider(
-        stores: {
-          _cache.storeName: BrowseStoreStrategy.readUpdateCreate,
-        },
-        loadingStrategy: _offlineOnlyModeEnabled
-            ? BrowseLoadingStrategy.cacheOnly
-            : BrowseLoadingStrategy.cacheFirst,
-      ),
-      userAgentPackageName: 'com.biketracker.app',
-      maxZoom: 19,
-    );
-  }
-
-  Future<void> _downloadMapOffline() async {
-    if (_polylinePoints.isEmpty) return;
-
-    if (_offlineOnlyModeEnabled) {
-      final semanticColors = Theme.of(context).extension<AppSemanticColors>()!;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text(
-            'Turn off Offline Mode in settings to download new tiles.',
-          ),
-          backgroundColor: semanticColors.warning,
-        ),
-      );
-      return;
-    }
-
-    final downloadBounds = _expandedBounds(_calculateBounds());
-    final downloadRegion = RectangleRegion(downloadBounds).toDownloadable(
-      minZoom: 12,
-      maxZoom: 17,
-      options: _buildRideTileLayer(),
-    );
-
-    final estimatedTiles = await _cache.download.countTiles(downloadRegion);
-    final estimatedMb =
-        ((estimatedTiles * _estimatedKbPerTile) / 1024).toStringAsFixed(1);
-    if (!mounted) return;
-
-    final shouldStart = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Download Offline Map'),
-        content: Text(
-          'This will download about $estimatedTiles tiles for this ride area '
-          '(zoom 12-17, approximately $estimatedMb MB). Continue?',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Download'),
-          ),
-        ],
-      ),
-    );
-
-    if (shouldStart != true || !mounted) return;
-
-    setState(() => _isDownloadingOfflineMap = true);
-
-    final progress = ValueNotifier<DownloadProgress?>(null);
-    final streams = _cache.download.startForeground(
-      region: downloadRegion,
-      skipExistingTiles: true,
-      parallelThreads: 3,
-      maxBufferLength: 100,
-    );
-
-    DownloadProgress? lastProgress;
-    Object? failure;
-    final finished = Completer<void>();
-    late final StreamSubscription<DownloadProgress> subscription;
-
-    subscription = streams.downloadProgress.listen(
-      (event) {
-        lastProgress = event;
-        progress.value = event;
-      },
-      onError: (error, _) {
-        failure = error;
-        if (!finished.isCompleted) finished.complete();
-      },
-      onDone: () {
-        if (!finished.isCompleted) finished.complete();
-      },
-      cancelOnError: true,
-    );
-
-    var dialogIsOpen = true;
-    final dialog = showDialog<void>(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => ValueListenableBuilder<DownloadProgress?>(
-        valueListenable: progress,
-        builder: (context, current, _) {
-          final ratio = current == null
-              ? null
-              : (current.attemptedTilesCount / current.maxTilesCount)
-                  .clamp(0.0, 1.0);
-          final pct = current?.percentageProgress.toStringAsFixed(1) ?? '0.0';
-
-          return AlertDialog(
-            title: const Text('Downloading Offline Map'),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                LinearProgressIndicator(value: ratio),
-                const SizedBox(height: 12),
-                Text('$pct% complete'),
-                const SizedBox(height: 6),
-                Text(
-                  current == null
-                      ? 'Preparing download...'
-                      : '${current.attemptedTilesCount}/${current.maxTilesCount} tiles',
-                ),
-              ],
-            ),
-            actions: [
-              TextButton(
-                onPressed: () async {
-                  await _cache.download.cancel();
-                  if (context.mounted) Navigator.of(context).pop();
-                },
-                child: const Text('Stop'),
-              ),
-            ],
-          );
-        },
-      ),
-    ).whenComplete(() {
-      dialogIsOpen = false;
-    });
-
-    await finished.future;
-    if (dialogIsOpen && mounted) {
-      Navigator.of(context, rootNavigator: true).pop();
-    }
-    await dialog;
-
-    await subscription.cancel();
-    progress.dispose();
-
-    if (!mounted) return;
-    setState(() => _isDownloadingOfflineMap = false);
-
-    if (failure != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Offline map download failed: $failure')),
-      );
-      return;
-    }
-
-    final downloadedTiles = lastProgress?.flushedTilesCount ?? 0;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Offline map ready ($downloadedTiles tiles).')),
-    );
-  }
-
-  LatLngBounds _expandedBounds(LatLngBounds bounds) {
-    final minLat = bounds.southWest.latitude;
-    final maxLat = bounds.northEast.latitude;
-    final minLng = bounds.southWest.longitude;
-    final maxLng = bounds.northEast.longitude;
-
-    final latPadding = ((maxLat - minLat).abs() * 0.15).clamp(0.001, 0.03);
-    final lngPadding = ((maxLng - minLng).abs() * 0.15).clamp(0.001, 0.03);
-
-    return LatLngBounds(
-      LatLng(minLat - latPadding, minLng - lngPadding),
-      LatLng(maxLat + latPadding, maxLng + lngPadding),
-    );
-  }
-
   LatLngBounds _calculateBounds() {
     double minLat = double.infinity;
     double maxLat = double.negativeInfinity;
@@ -652,8 +407,8 @@ class _RideDetailScreenState extends State<RideDetailScreen> {
     }
 
     return LatLngBounds(
-      LatLng(minLat, minLng),
-      LatLng(maxLat, maxLng),
+      southwest: LatLng(minLat, minLng),
+      northeast: LatLng(maxLat, maxLng),
     );
   }
 
@@ -736,7 +491,7 @@ class _RideDetailScreenState extends State<RideDetailScreen> {
   @override
   void dispose() {
     _trackAnimationTimer?.cancel();
-    _mapController.dispose();
+    _mapController?.dispose();
     super.dispose();
   }
 }

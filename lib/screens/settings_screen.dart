@@ -48,7 +48,7 @@ class SettingsScreen extends StatelessWidget {
                                 letterSpacing: -0.5,
                               )),
                           const SizedBox(height: 8),
-                          Text('Set your look. Get your maps ready.',
+                          Text('Set your look. Explore your map.',
                               style: TextStyle(
                                 color: colors.onPrimary,
                                 fontSize: 14,
@@ -78,7 +78,7 @@ class SettingsScreen extends StatelessWidget {
                   _SettingsOption(
                     icon: Icons.map_outlined,
                     title: 'Map Settings',
-                    subtitle: 'Choose an area. Take it offline.',
+                    subtitle: 'View Google Maps around your location.',
                     onTap: () => Navigator.of(context).push(
                       MaterialPageRoute<void>(
                           builder: (_) => const MapSettingsScreen()),

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import 'offline_map_settings_screen.dart';
+import 'google_map_preview_screen.dart';
 
 class MapSettingsScreen extends StatelessWidget {
   const MapSettingsScreen({super.key});

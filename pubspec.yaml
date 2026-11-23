@@ -9,7 +9,6 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  flutter_map_tile_caching: ^10.1.1
 
   # State Management
   provider: ^6.1.1
@@ -27,8 +26,7 @@ dependencies:
   path_provider: ^2.1.1
 
   # Map
-  flutter_map: ^8.1.1
-  flutter_map_location_marker: ^10.2.0
+  google_maps_flutter: ^2.12.3
   latlong2: ^0.9.0
 
   # UI

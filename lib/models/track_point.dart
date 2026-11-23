@@ -30,7 +30,7 @@ class TrackPoint {
     };
   }
 
-  /// Returns a LatLng object for use with flutter_map
+  /// Returns a LatLng object for map display.
   LatLng toLatLng() {
     return LatLng(latitude, longitude);
   }

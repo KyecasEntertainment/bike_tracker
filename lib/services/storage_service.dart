@@ -11,11 +11,6 @@ class StorageService {
 
   static const String _rideBoxName = 'rides';
   static const String _settingsBoxName = 'app_settings';
-  static const String _offlineModeKey = 'offline_map_mode';
-  static const String _offlineRadiusKmKey = 'offline_map_radius_km';
-  static const String _offlineCustomLatKey = 'offline_map_custom_lat';
-  static const String _offlineCustomLngKey = 'offline_map_custom_lng';
-  static const String _offlineOnlyModeEnabledKey = 'offline_only_mode_enabled';
   static const String _selectedThemeKey = 'selected_app_theme';
   static const String _activeRideIdKey = 'active_ride_id';
 
@@ -55,41 +50,6 @@ class StorageService {
       throw StateError('StorageService not initialized. Call initialize() first.');
     }
     return _settingsBox!;
-  }
-
-  Future<void> saveOfflineMapSettings({
-    required String mode,
-    required double radiusKm,
-    double? customLatitude,
-    double? customLongitude,
-    required bool offlineOnlyModeEnabled,
-  }) async {
-    await settingsBox.put(_offlineModeKey, mode);
-    await settingsBox.put(_offlineRadiusKmKey, radiusKm);
-    await settingsBox.put(_offlineOnlyModeEnabledKey, offlineOnlyModeEnabled);
-
-    if (customLatitude != null) {
-      await settingsBox.put(_offlineCustomLatKey, customLatitude);
-    }
-    if (customLongitude != null) {
-      await settingsBox.put(_offlineCustomLngKey, customLongitude);
-    }
-  }
-
-  Map<String, dynamic> getOfflineMapSettings() {
-    return {
-      'mode': settingsBox.get(_offlineModeKey, defaultValue: 'current_location') as String,
-      'radiusKm': (settingsBox.get(_offlineRadiusKmKey, defaultValue: 5.0) as num)
-          .toDouble(),
-      'customLatitude': (settingsBox.get(_offlineCustomLatKey) as num?)?.toDouble(),
-      'customLongitude': (settingsBox.get(_offlineCustomLngKey) as num?)?.toDouble(),
-      'offlineOnlyModeEnabled':
-          settingsBox.get(_offlineOnlyModeEnabledKey, defaultValue: false) as bool,
-    };
-  }
-
-  bool isOfflineOnlyModeEnabled() {
-    return settingsBox.get(_offlineOnlyModeEnabledKey, defaultValue: false) as bool;
   }
 
   Future<void> saveSelectedTheme(AppThemeOption option) async {
