@@ -121,7 +121,7 @@ class BackgroundService {
         notificationText: 'Duration: 00:00 | Distance: 0.00 km',
         callback: startCallback,
       );
-      return result ?? false;
+      return result;
     } catch (e) {
       print('Error starting background service: $e');
       return false;
@@ -134,7 +134,7 @@ class BackgroundService {
       await FlutterForegroundTask.removeData(key: kRideStartEpochMsKey);
       await FlutterForegroundTask.removeData(key: kRideDistanceMetersKey);
       final result = await FlutterForegroundTask.stopService();
-      return result ?? false;
+      return result;
     } catch (e) {
       print('Error stopping background service: $e');
       return false;

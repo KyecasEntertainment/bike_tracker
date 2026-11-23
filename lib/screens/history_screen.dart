@@ -27,7 +27,7 @@ class HistoryScreen extends StatelessWidget {
                 SliverToBoxAdapter(
                   child: DashboardPageHeader(
                     title: 'Ride History',
-                    subtitle: 'Every ride. Every kilometre.',
+                    subtitle: 'Every ride. Every kilometer.',
                     action: DashboardIconButton(
                       icon: Icons.settings_outlined,
                       tooltip: 'Settings',

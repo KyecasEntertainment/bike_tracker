@@ -1,5 +1,5 @@
 name: bike_tracker
-description: A Flutter bike tracking app with GPS tracking, offline storage, and trail visualization.
+description: Kyecas bike tracker app with GPS tracking, offline storage, and trail visualization.
 publish_to: 'none'
 version: 1.0.2
 
@@ -46,9 +46,11 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  assets:
+    - assets/bike_logo.png
   # Flutter launcher icons configuration
 flutter_icons:
   android: true
-  ios: false
+  ios: true
   image_path: "assets/logo.png"
   remove_alpha_ios: true

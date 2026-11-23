@@ -1,11 +1,11 @@
 {
-    "name": "bike_tracker",
-    "short_name": "bike_tracker",
+    "name": "Kyecas: Bike Tracker App",
+    "short_name": "Kyecas Bike Tracker",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
     "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "description": "Kyecas: Bike Tracker App",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

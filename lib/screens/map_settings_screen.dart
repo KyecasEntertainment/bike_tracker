@@ -14,8 +14,7 @@ class MapSettingsScreen extends StatelessWidget {
       borderSide: BorderSide(color: colors.outline),
     );
     return Scaffold(
-      body: SafeArea(
-        child: Theme(
+      body: Theme(
           data: theme.copyWith(
             inputDecorationTheme: InputDecorationTheme(
               filled: true,
@@ -46,7 +45,6 @@ class MapSettingsScreen extends StatelessWidget {
             ),
           ),
           child: const MapSettingsPage(),
-        ),
       ),
     );
   }

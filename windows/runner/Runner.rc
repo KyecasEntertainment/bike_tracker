@@ -90,12 +90,12 @@ BEGIN
         BLOCK "040904e4"
         BEGIN
             VALUE "CompanyName", "com.example" "\0"
-            VALUE "FileDescription", "bike_tracker" "\0"
+            VALUE "FileDescription", "Kyecas: Bike Tracker App" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
-            VALUE "InternalName", "bike_tracker" "\0"
+            VALUE "InternalName", "kyecas_bike_tracker_app" "\0"
             VALUE "LegalCopyright", "Copyright (C) 2026 com.example. All rights reserved." "\0"
-            VALUE "OriginalFilename", "bike_tracker.exe" "\0"
-            VALUE "ProductName", "bike_tracker" "\0"
+            VALUE "OriginalFilename", "kyecas_bike_tracker_app.exe" "\0"
+            VALUE "ProductName", "Kyecas: Bike Tracker App" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END

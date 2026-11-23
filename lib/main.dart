@@ -41,7 +41,7 @@ class BikeTrackerApp extends StatelessWidget {
       ],
       child: Consumer<ThemeProvider>(
         builder: (context, themeProvider, _) => MaterialApp(
-          title: 'Bike Tracker',
+          title: 'Kyecas: Bike Tracker App',
           debugShowCheckedModeBanner: false,
           theme: themeProvider.themeData,
           home: const HomeScreen(),

@@ -238,6 +238,7 @@ class _RideDetailScreenState extends State<RideDetailScreen> {
               point: startPoint,
               width: 40,
               height: 40,
+              rotate: true,
               child: Container(
                 decoration: BoxDecoration(
                   color: semanticColors.trailStart,
@@ -260,6 +261,7 @@ class _RideDetailScreenState extends State<RideDetailScreen> {
                 point: currentEndPoint,
                 width: 40,
                 height: 40,
+                rotate: true,
                 child: Container(
                   decoration: BoxDecoration(
                     color: semanticColors.trailEnd,
