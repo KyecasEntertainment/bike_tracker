@@ -4,7 +4,8 @@ Bike Tracker is a Flutter app for recording bike rides with GPS, saving ride his
 
 ## What It Does
 
-- Tracks bike rides with live duration, distance, average speed, and recorded GPS point count.
+- Tracks bike rides with live duration, distance, and average speed.
+- Shows current or latest ride statistics alongside longest distance and fastest ride average speed records.
 - Supports start, pause, resume, stop, save, and discard ride flows.
 - Keeps tracking active through an Android foreground service notification while a ride is running.
 - Persists rides locally with Hive, including GPS points, distance, duration, start time, and end time.
@@ -18,7 +19,7 @@ Bike Tracker is a Flutter app for recording bike rides with GPS, saving ride his
 
 ## Main Screens
 
-- **Track**: live ride timer, distance, average speed, point count, and ride controls.
+- **Home**: live ride timer, current or latest ride distance and average speed, personal bests, and ride controls.
 - **History**: saved rides, aggregate totals, per-ride stats, delete-one, and clear-all actions.
 - **Ride Details**: route map, animated trail replay, offline map download for the ride area, and ride statistics.
 - **Settings**: app theme settings and map/offline tile settings.

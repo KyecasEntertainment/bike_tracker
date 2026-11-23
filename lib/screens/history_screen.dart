@@ -1,361 +1,358 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+
 import '../models/ride_session.dart';
 import '../providers/rides_provider.dart';
-import '../utils/app_color_theme.dart';
+import '../widgets/dashboard_components.dart';
 import 'ride_detail_screen.dart';
+import 'settings_screen.dart';
 
-/// Screen showing the history of completed rides.
+/// Saved rides, using the same surfaces and accents as the home dashboard.
 class HistoryScreen extends StatelessWidget {
   const HistoryScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Ride History'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.delete_outline),
-            onPressed: () => _confirmClearAll(context),
-          ),
-        ],
-      ),
-      body: Consumer<RidesProvider>(
-        builder: (context, provider, child) {
-          if (provider.isLoading) {
-            return const Center(
-              child: CircularProgressIndicator(),
-            );
-          }
-
-          if (provider.rides.isEmpty) {
-            return _buildEmptyState(context);
-          }
-
-          return Column(
-            children: [
-              // Summary stats
-              _buildSummaryStats(context, provider),
-              
-              // Rides list
-              Expanded(
-                child: ListView.builder(
-                  padding: const EdgeInsets.all(16),
-                  itemCount: provider.rides.length,
-                  itemBuilder: (context, index) {
-                    final ride = provider.rides[index];
-                    return _RideCard(
-                      ride: ride,
-                      onTap: () => _openRideDetail(context, ride),
-                      onDelete: () => _confirmDelete(context, provider, ride),
-                    );
-                  },
+      body: SafeArea(
+        bottom: false,
+        child: Consumer<RidesProvider>(builder: (context, provider, child) {
+          return RefreshIndicator(
+            onRefresh: provider.loadRides,
+            child: CustomScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              slivers: [
+                SliverToBoxAdapter(
+                  child: DashboardPageHeader(
+                    title: 'Ride History',
+                    subtitle: 'Every ride. Every kilometre.',
+                    action: DashboardIconButton(
+                      icon: Icons.settings_outlined,
+                      tooltip: 'Settings',
+                      onPressed: () => Navigator.of(context).push(
+                        MaterialPageRoute<void>(
+                            builder: (_) => const SettingsScreen()),
+                      ),
+                    ),
+                  ),
                 ),
-              ),
-            ],
+                if (provider.isLoading)
+                  const SliverFillRemaining(
+                    hasScrollBody: false,
+                    child: Center(child: CircularProgressIndicator()),
+                  )
+                else ...[
+                  SliverPadding(
+                    padding: const EdgeInsets.symmetric(horizontal: 26),
+                    sliver: SliverToBoxAdapter(
+                        child:
+                            _HistorySummary(stats: provider.getTotalStats())),
+                  ),
+                  SliverPadding(
+                    padding: const EdgeInsets.fromLTRB(26, 28, 20, 16),
+                    sliver: SliverToBoxAdapter(
+                      child: Row(children: [
+                        Expanded(
+                            child: Text('Recent rides',
+                                style: TextStyle(
+                                  color: colors.onSurface,
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w600,
+                                ))),
+                        if (provider.rides.isNotEmpty)
+                          IconButton(
+                            tooltip: 'Clear all rides',
+                            icon: const Icon(Icons.delete_sweep_outlined),
+                            color: colors.onSurfaceVariant,
+                            onPressed: () =>
+                                _confirmClearAll(context, provider),
+                          ),
+                      ]),
+                    ),
+                  ),
+                  if (provider.rides.isEmpty)
+                    SliverPadding(
+                      padding: const EdgeInsets.fromLTRB(26, 0, 26, 32),
+                      sliver:
+                          SliverToBoxAdapter(child: _buildEmptyState(context)),
+                    )
+                  else
+                    SliverPadding(
+                      padding: const EdgeInsets.fromLTRB(26, 0, 26, 24),
+                      sliver: SliverList.builder(
+                        itemCount: provider.rides.length,
+                        itemBuilder: (context, index) {
+                          final ride = provider.rides[index];
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 16),
+                            child: _RideCard(
+                              ride: ride,
+                              onTap: () => Navigator.of(context).push(
+                                MaterialPageRoute<void>(
+                                    builder: (_) =>
+                                        RideDetailScreen(ride: ride)),
+                              ),
+                              onDelete: () =>
+                                  _confirmDelete(context, provider, ride),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                ],
+              ],
+            ),
           );
-        },
+        }),
       ),
     );
   }
 
   Widget _buildEmptyState(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.history,
-            size: 80,
-            color: Theme.of(context).colorScheme.outline,
-          ),
-          const SizedBox(height: 24),
-          Text(
-            'No rides yet',
-            style: Theme.of(context).textTheme.headlineSmall,
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Start tracking your first ride!',
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSummaryStats(BuildContext context, RidesProvider provider) {
-    final stats = provider.getTotalStats();
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.primaryContainer,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: _buildStatItem(
-              context,
-              'Total Rides',
-              '${stats['totalRides']}',
-              Icons.directions_bike,
-            ),
-          ),
-          Container(
-            height: 40,
-            width: 1,
-            color: Theme.of(context).colorScheme.outline.withOpacity(0.2),
-          ),
-          Expanded(
-            child: _buildStatItem(
-              context,
-              'Distance',
-              stats['formattedDistance'],
-              Icons.straighten,
-            ),
-          ),
-          Container(
-            height: 40,
-            width: 1,
-            color: Theme.of(context).colorScheme.outline.withOpacity(0.2),
-          ),
-          Expanded(
-            child: _buildStatItem(
-              context,
-              'Duration',
-              stats['formattedDuration'],
-              Icons.timer,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStatItem(
-    BuildContext context,
-    String label,
-    String value,
-    IconData icon,
-  ) {
-    return Column(
-      children: [
-        Icon(
-          icon,
-          size: 20,
-          color: Theme.of(context).colorScheme.primary,
-        ),
-        const SizedBox(height: 4),
+    final colors = Theme.of(context).colorScheme;
+    return DashboardSurface(
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 36),
+      child: Column(children: [
+        Icon(Icons.route_outlined, color: colors.primary, size: 36),
+        const SizedBox(height: 20),
+        Text('No rides yet',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+                color: colors.onSurface,
+                fontSize: 20,
+                fontWeight: FontWeight.w600)),
+        const SizedBox(height: 10),
         Text(
-          value,
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: Theme.of(context).colorScheme.primary,
-              ),
-        ),
-        Text(
-          label,
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
-        ),
-      ],
+            'Your next adventure starts on Home.\nTap Start Ride to record your first ride.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+                color: colors.onSurfaceVariant, fontSize: 14, height: 1.6)),
+      ]),
     );
   }
 
-  void _openRideDetail(BuildContext context, RideSession ride) {
-    Navigator.push(
+  Future<void> _confirmDelete(
+      BuildContext context, RidesProvider provider, RideSession ride) async {
+    final confirmed = await _showDeleteDialog(
       context,
-      MaterialPageRoute(
-        builder: (context) => RideDetailScreen(ride: ride),
-      ),
+      title: 'Delete Ride',
+      message:
+          'Delete the ride from ${ride.formattedStartTime}? This cannot be undone.',
+      action: 'Delete',
     );
+    if (confirmed != true || !context.mounted) return;
+    await provider.deleteRide(ride.id);
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context)
+        .showSnackBar(const SnackBar(content: Text('Ride deleted')));
   }
 
-  void _confirmDelete(
-    BuildContext context,
-    RidesProvider provider,
-    RideSession ride,
-  ) {
-    final semanticColors = Theme.of(context).extension<AppSemanticColors>()!;
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Delete Ride'),
-        content: Text(
-          'Are you sure you want to delete this ride from ${ride.formattedStartTime}?',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () {
-              provider.deleteRide(ride.id);
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('Ride deleted'),
-                  backgroundColor: semanticColors.danger,
-                ),
-              );
-            },
-            child: Text(
-              'Delete',
-              style: TextStyle(color: semanticColors.danger),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _confirmClearAll(BuildContext context) {
-    final semanticColors = Theme.of(context).extension<AppSemanticColors>()!;
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Clear All Rides'),
-        content: const Text(
+  Future<void> _confirmClearAll(
+      BuildContext context, RidesProvider provider) async {
+    final confirmed = await _showDeleteDialog(
+      context,
+      title: 'Clear All Rides',
+      message:
           'Are you sure you want to delete all rides? This action cannot be undone.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () {
-              context.read<RidesProvider>().clearAllRides();
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('All rides deleted'),
-                  backgroundColor: semanticColors.danger,
-                ),
-              );
-            },
-            child: Text(
-              'Clear All',
-              style: TextStyle(color: semanticColors.danger),
-            ),
-          ),
-        ],
-      ),
+      action: 'Clear All',
     );
+    if (confirmed != true || !context.mounted) return;
+    await provider.clearAllRides();
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context)
+        .showSnackBar(const SnackBar(content: Text('All rides deleted')));
   }
+
+  Future<bool?> _showDeleteDialog(
+    BuildContext context, {
+    required String title,
+    required String message,
+    required String action,
+  }) =>
+      showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: Text(title),
+          content: Text(message),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Cancel')),
+            TextButton(
+              onPressed: () => Navigator.pop(context, true),
+              style: TextButton.styleFrom(
+                  foregroundColor: Theme.of(context).colorScheme.error),
+              child: Text(action),
+            ),
+          ],
+        ),
+      );
 }
 
-/// A card widget for displaying a ride in the history list.
+class _HistorySummary extends StatelessWidget {
+  final Map<String, dynamic> stats;
+  const _HistorySummary({required this.stats});
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: colors.primary,
+        borderRadius: BorderRadius.circular(22),
+        boxShadow: [
+          BoxShadow(
+              color: colors.primary.withValues(alpha: 0.15), blurRadius: 18)
+        ],
+      ),
+      child: DefaultTextStyle.merge(
+        style: TextStyle(color: colors.onPrimary),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(children: [
+            Icon(Icons.route_outlined, color: colors.onPrimary, size: 20),
+            const SizedBox(width: 8),
+            Expanded(
+                child: Text('ALL-TIME DISTANCE',
+                    style: TextStyle(
+                      color: colors.onPrimary,
+                      fontSize: 11,
+                      letterSpacing: 1.4,
+                      fontWeight: FontWeight.w600,
+                    ))),
+          ]),
+          const SizedBox(height: 12),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(stats['formattedDistance'] as String,
+                style: TextStyle(
+                  color: colors.onPrimary,
+                  fontSize: 38,
+                  fontWeight: FontWeight.w700,
+                  fontFeatures: const [FontFeature.tabularFigures()],
+                )),
+          ),
+          const SizedBox(height: 24),
+          Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Expanded(
+                child: _summaryItem(
+                    context, 'Total rides', '${stats['totalRides']}')),
+            const SizedBox(width: 20),
+            Expanded(
+                child: _summaryItem(context, 'Ride time',
+                    stats['formattedDuration'] as String)),
+          ]),
+        ]),
+      ),
+    );
+  }
+
+  Widget _summaryItem(BuildContext context, String label, String value) =>
+      Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label, style: const TextStyle(fontSize: 12)),
+          const SizedBox(height: 6),
+          Text(value,
+              style:
+                  const TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
+        ],
+      );
+}
+
 class _RideCard extends StatelessWidget {
   final RideSession ride;
   final VoidCallback onTap;
   final VoidCallback onDelete;
-
-  const _RideCard({
-    required this.ride,
-    required this.onTap,
-    required this.onDelete,
-  });
+  const _RideCard(
+      {required this.ride, required this.onTap, required this.onDelete});
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.directions_bike,
-                        color: Theme.of(context).colorScheme.primary,
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        ride.formattedStartTime,
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.w600,
-                            ),
-                      ),
-                    ],
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.delete_outline),
-                    onPressed: onDelete,
-                    color: Theme.of(context).colorScheme.error,
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildInfoItem(
-                      context,
-                      Icons.straighten,
-                      ride.formattedDistance,
-                    ),
-                  ),
-                  Expanded(
-                    child: _buildInfoItem(
-                      context,
-                      Icons.timer,
-                      ride.formattedDuration,
-                    ),
-                  ),
-                  Expanded(
-                    child: _buildInfoItem(
-                      context,
-                      Icons.speed,
-                      ride.formattedAverageSpeed,
-                    ),
-                  ),
-                ],
-              ),
-            ],
+    final colors = Theme.of(context).colorScheme;
+    final name = ride.name?.trim();
+    return DashboardSurface(
+      onTap: onTap,
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          Icon(Icons.directions_bike_outlined, color: colors.primary, size: 23),
+          const SizedBox(width: 12),
+          Expanded(
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                Text(
+                    name == null || name.isEmpty
+                        ? DateFormat('EEE, d MMM').format(ride.startTime)
+                        : name,
+                    style: TextStyle(
+                        color: colors.onSurface,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600)),
+                const SizedBox(height: 4),
+                Text(DateFormat('d MMM yyyy · h:mm a').format(ride.startTime),
+                    style: TextStyle(
+                        color: colors.onSurfaceVariant,
+                        fontSize: 12,
+                        height: 1.4)),
+              ])),
+          IconButton(
+            tooltip: 'Delete ride',
+            icon: const Icon(Icons.delete_outline_rounded, size: 21),
+            color: colors.onSurfaceVariant,
+            onPressed: onDelete,
           ),
+        ]),
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 18),
+          child: Divider(color: colors.outline, height: 1),
         ),
-      ),
+        LayoutBuilder(builder: (context, constraints) {
+          final columns = constraints.maxWidth < 280 ||
+                  MediaQuery.textScalerOf(context).scale(12) > 16
+              ? 2
+              : 3;
+          final width = (constraints.maxWidth - (columns - 1) * 16) / columns;
+          return Wrap(spacing: 16, runSpacing: 16, children: [
+            SizedBox(
+                width: width,
+                child: _metric(context, Icons.route_outlined, 'Distance',
+                    ride.formattedDistance)),
+            SizedBox(
+                width: width,
+                child: _metric(context, Icons.timer_outlined, 'Duration',
+                    ride.formattedDuration)),
+            SizedBox(
+                width: width,
+                child: _metric(context, Icons.speed_outlined, 'Avg speed',
+                    ride.formattedAverageSpeed)),
+          ]);
+        }),
+      ]),
     );
   }
 
-  Widget _buildInfoItem(BuildContext context, IconData icon, String value) {
-    return Row(
-      children: [
-        Icon(
-          icon,
-          size: 16,
-          color: Theme.of(context).colorScheme.onSurfaceVariant,
-        ),
-        const SizedBox(width: 4),
-        Text(
-          value,
-          style: Theme.of(context).textTheme.bodyMedium,
-        ),
-      ],
-    );
+  Widget _metric(
+      BuildContext context, IconData icon, String label, String value) {
+    final colors = Theme.of(context).colorScheme;
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Icon(icon, size: 17, color: colors.primary),
+      const SizedBox(height: 7),
+      FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: Alignment.centerLeft,
+          child: Text(value,
+              style: TextStyle(
+                  color: colors.onSurface,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600))),
+      const SizedBox(height: 4),
+      Text(label,
+          style: TextStyle(
+              color: colors.onSurfaceVariant, fontSize: 11, height: 1.3)),
+    ]);
   }
 }

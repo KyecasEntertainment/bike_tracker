@@ -8,6 +8,7 @@ import 'package:latlong2/latlong.dart';
 import '../services/location_service.dart';
 import '../services/storage_service.dart';
 import '../utils/app_color_theme.dart';
+import '../widgets/dashboard_components.dart';
 
 enum OfflineAreaMode {
   currentLocation,
@@ -55,7 +56,8 @@ class _MapSettingsPageState extends State<MapSettingsPage> {
         ? OfflineAreaMode.customCenter
         : OfflineAreaMode.currentLocation;
     _radiusKm = settings['radiusKm'] as double;
-    _offlineOnlyModeEnabled = settings['offlineOnlyModeEnabled'] as bool? ?? false;
+    _offlineOnlyModeEnabled =
+        settings['offlineOnlyModeEnabled'] as bool? ?? false;
 
     if (lat != null && lng != null) {
       _latController.text = lat.toStringAsFixed(6);
@@ -90,148 +92,164 @@ class _MapSettingsPageState extends State<MapSettingsPage> {
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text(
-            'Map Settings',
-            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
+          const DashboardPageHeader(
+            title: 'Map Settings',
+            subtitle: 'Your next route, ready to go offline.',
+            showBackButton: true,
           ),
-          const SizedBox(height: 8),
-          Text(
-            'Choose which area should be downloaded for offline map usage.',
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+          Padding(
+            padding: const EdgeInsets.fromLTRB(26, 0, 26, 32),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                DashboardSurface(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+                  child: SwitchListTile.adaptive(
+                    contentPadding: EdgeInsets.zero,
+                    activeThumbColor: Theme.of(context).colorScheme.primary,
+                    title: const Text('Offline Mode'),
+                    subtitle: const Text(
+                      'Use downloaded maps without an internet connection.',
+                    ),
+                    value: _offlineOnlyModeEnabled,
+                    onChanged: (value) {
+                      setState(() {
+                        _offlineOnlyModeEnabled = value;
+                      });
+                    },
+                  ),
                 ),
-          ),
-          const SizedBox(height: 16),
-          SwitchListTile.adaptive(
-            contentPadding: EdgeInsets.zero,
-            title: const Text('Offline Mode'),
-            subtitle: const Text(
-              'Use downloaded map tiles only. No online OSM fetching.',
-            ),
-            value: _offlineOnlyModeEnabled,
-            onChanged: (value) {
-              setState(() {
-                _offlineOnlyModeEnabled = value;
-              });
-            },
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Offline Area',
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.bold,
+                const SizedBox(height: 28),
+                Text(
+                  'Offline Area',
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
                 ),
-          ),
-          const SizedBox(height: 12),
-          SegmentedButton<OfflineAreaMode>(
-              segments: const [
-                ButtonSegment(
-                  value: OfflineAreaMode.currentLocation,
-                  label: Text('From My Location'),
-                  icon: Icon(Icons.my_location),
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 10,
+                  runSpacing: 10,
+                  children: [
+                    for (final mode in OfflineAreaMode.values)
+                      ChoiceChip(
+                        label: Text(mode == OfflineAreaMode.currentLocation
+                            ? 'My location'
+                            : 'Custom area'),
+                        avatar: Icon(
+                            mode == OfflineAreaMode.currentLocation
+                                ? Icons.my_location
+                                : Icons.place_outlined,
+                            size: 18,
+                            color: _mode == mode
+                                ? Theme.of(context).colorScheme.onPrimary
+                                : Theme.of(context).colorScheme.primary),
+                        selected: _mode == mode,
+                        showCheckmark: false,
+                        selectedColor: Theme.of(context).colorScheme.primary,
+                        backgroundColor: Theme.of(context).colorScheme.surface,
+                        labelStyle: TextStyle(
+                            color: _mode == mode
+                                ? Theme.of(context).colorScheme.onPrimary
+                                : Theme.of(context).colorScheme.onSurface),
+                        side: BorderSide(
+                            color: _mode == mode
+                                ? Theme.of(context).colorScheme.primary
+                                : Theme.of(context).colorScheme.outline),
+                        onSelected: (_) => unawaited(_handleModeChange(mode)),
+                      ),
+                  ],
                 ),
-                ButtonSegment(
-                  value: OfflineAreaMode.customCenter,
-                  label: Text('Custom Part of Map'),
-                  icon: Icon(Icons.place),
+                const SizedBox(height: 12),
+                _buildMapPreview(),
+                const SizedBox(height: 20),
+                Text(
+                  'Radius: ${_radiusKm.toStringAsFixed(1)} km',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                Slider(
+                  min: 1,
+                  max: 30,
+                  divisions: 58,
+                  value: _radiusKm,
+                  label: '${_radiusKm.toStringAsFixed(1)} km',
+                  onChanged: (value) {
+                    setState(() {
+                      _radiusKm = value;
+                    });
+                    if (_previewCenter != null) {
+                      _previewMapController.move(
+                        _previewCenter!,
+                        _zoomForRadiusKm(_radiusKm),
+                      );
+                    }
+                  },
+                ),
+                if (_mode == OfflineAreaMode.customCenter) ...[
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: _latController,
+                    keyboardType:
+                        const TextInputType.numberWithOptions(decimal: true),
+                    decoration: const InputDecoration(
+                      labelText: 'Latitude',
+                      hintText: 'e.g. 14.599512',
+                    ),
+                    onChanged: (_) => _syncPreviewCenterFromInputs(),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: _lngController,
+                    keyboardType:
+                        const TextInputType.numberWithOptions(decimal: true),
+                    decoration: const InputDecoration(
+                      labelText: 'Longitude',
+                      hintText: 'e.g. 120.984222',
+                    ),
+                    onChanged: (_) => _syncPreviewCenterFromInputs(),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Tip: You can paste coordinates of the exact part of map '
+                    'you want available offline, or tap the map to place the marker.',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                  ),
+                ],
+                const SizedBox(height: 24),
+                FilledButton.icon(
+                  onPressed: _isSaving ? null : _saveSettings,
+                  icon: _isSaving
+                      ? const SizedBox(
+                          height: 16,
+                          width: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.save_outlined),
+                  label: Text(_isSaving ? 'Saving...' : 'Save Settings'),
+                ),
+                const SizedBox(height: 10),
+                OutlinedButton.icon(
+                  onPressed: _isDownloading ? null : _downloadNow,
+                  icon: _isDownloading
+                      ? const SizedBox(
+                          height: 16,
+                          width: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.download_for_offline_outlined),
+                  label: Text(_isDownloading
+                      ? 'Downloading...'
+                      : 'Download Offline Map'),
                 ),
               ],
-              selected: {_mode},
-              onSelectionChanged: (selection) {
-                unawaited(_handleModeChange(selection.first));
-              },
             ),
-          const SizedBox(height: 12),
-          _buildMapPreview(),
-          const SizedBox(height: 20),
-          Text(
-            'Radius: ${_radiusKm.toStringAsFixed(1)} km',
-            style: Theme.of(context).textTheme.titleMedium,
           ),
-          Slider(
-              min: 1,
-              max: 30,
-              divisions: 58,
-              value: _radiusKm,
-              label: '${_radiusKm.toStringAsFixed(1)} km',
-              onChanged: (value) {
-                setState(() {
-                  _radiusKm = value;
-                });
-                if (_previewCenter != null) {
-                  _previewMapController.move(
-                    _previewCenter!,
-                    _zoomForRadiusKm(_radiusKm),
-                  );
-                }
-              },
-            ),
-          if (_mode == OfflineAreaMode.customCenter) ...[
-            const SizedBox(height: 16),
-            TextField(
-                controller: _latController,
-                keyboardType:
-                    const TextInputType.numberWithOptions(decimal: true),
-                decoration: const InputDecoration(
-                  labelText: 'Latitude',
-                  hintText: 'e.g. 14.599512',
-                  border: OutlineInputBorder(),
-                ),
-                onChanged: (_) => _syncPreviewCenterFromInputs(),
-              ),
-            const SizedBox(height: 12),
-            TextField(
-                controller: _lngController,
-                keyboardType:
-                    const TextInputType.numberWithOptions(decimal: true),
-                decoration: const InputDecoration(
-                  labelText: 'Longitude',
-                  hintText: 'e.g. 120.984222',
-                  border: OutlineInputBorder(),
-                ),
-                onChanged: (_) => _syncPreviewCenterFromInputs(),
-              ),
-            const SizedBox(height: 8),
-            Text(
-                'Tip: You can paste coordinates of the exact part of map '
-                'you want available offline, or tap the map to place the marker.',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
-              ),
-          ],
-          const SizedBox(height: 24),
-          FilledButton.icon(
-              onPressed: _isSaving ? null : _saveSettings,
-              icon: _isSaving
-                  ? const SizedBox(
-                      height: 16,
-                      width: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.save_outlined),
-              label: Text(_isSaving ? 'Saving...' : 'Save Settings'),
-            ),
-          const SizedBox(height: 10),
-          OutlinedButton.icon(
-              onPressed: _isDownloading ? null : _downloadNow,
-              icon: _isDownloading
-                  ? const SizedBox(
-                      height: 16,
-                      width: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.download_for_offline_outlined),
-              label: Text(_isDownloading
-                  ? 'Downloading Offline Map...'
-                  : 'Download Offline Map Now'),
-            ),
         ],
       ),
     );
@@ -267,7 +285,7 @@ class _MapSettingsPageState extends State<MapSettingsPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: const Text(
-            'Turn off Offline Mode to download new tiles from OSM.',
+            'Turn off Offline Mode to download new maps.',
           ),
           backgroundColor: semanticColors.warning,
         ),
@@ -288,7 +306,8 @@ class _MapSettingsPageState extends State<MapSettingsPage> {
     );
 
     final estimate = await _cache.download.countTiles(region);
-    final estimatedMb = ((estimate * _estimatedKbPerTile) / 1024).toStringAsFixed(1);
+    final estimatedMb =
+        ((estimate * _estimatedKbPerTile) / 1024).toStringAsFixed(1);
     if (!mounted) return;
 
     final shouldStart = await showDialog<bool>(
@@ -430,8 +449,14 @@ class _MapSettingsPageState extends State<MapSettingsPage> {
               ),
         ),
         const SizedBox(height: 8),
-        ClipRRect(
-          borderRadius: BorderRadius.circular(12),
+        Container(
+          clipBehavior: Clip.antiAlias,
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.surface,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+                color: Theme.of(context).colorScheme.primary, width: 1.2),
+          ),
           child: SizedBox(
             height: 300,
             child: _isResolvingPreview || _previewCenter == null
@@ -546,7 +571,7 @@ class _MapSettingsPageState extends State<MapSettingsPage> {
       final semanticColors = Theme.of(context).extension<AppSemanticColors>()!;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Unable to get your current location.'),
+          content: const Text('Unable to get your current location.'),
           backgroundColor: semanticColors.danger,
         ),
       );
@@ -571,10 +596,11 @@ class _MapSettingsPageState extends State<MapSettingsPage> {
 
     if (!isValid) {
       if (showError && mounted) {
-        final semanticColors = Theme.of(context).extension<AppSemanticColors>()!;
+        final semanticColors =
+            Theme.of(context).extension<AppSemanticColors>()!;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Enter valid latitude/longitude values.'),
+            content: const Text('Enter valid latitude/longitude values.'),
             backgroundColor: semanticColors.danger,
           ),
         );
