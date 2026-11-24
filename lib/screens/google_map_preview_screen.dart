@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 import '../services/location_service.dart';
+import '../utils/google_map_styles.dart';
 
 class MapSettingsPage extends StatefulWidget {
   const MapSettingsPage({super.key});
@@ -31,7 +32,8 @@ class _MapSettingsPageState extends State<MapSettingsPage> {
 
     if (position != null) {
       _center = LatLng(position.latitude, position.longitude);
-      await _mapController?.animateCamera(CameraUpdate.newLatLngZoom(_center, 14));
+      await _mapController
+          ?.animateCamera(CameraUpdate.newLatLngZoom(_center, 14));
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Unable to get your current location.')),
@@ -117,6 +119,7 @@ class _MapSettingsPageState extends State<MapSettingsPage> {
 
     return GoogleMap(
       initialCameraPosition: CameraPosition(target: _center, zoom: 12),
+      style: GoogleMapStyles.forBrightness(Theme.of(context).brightness),
       onMapCreated: (controller) => _mapController = controller,
       myLocationButtonEnabled: false,
       markers: {
